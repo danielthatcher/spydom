@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -49,7 +50,7 @@ func (w *Worker) Load(u string) error {
 
 // Work reads URLs from the given channel, loads them, and then performs any
 // tasks on the loaded page.
-func (w *Worker) Work(urlsChan <-chan string, errorChan chan error) {
+func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, reportChan chan<- string) {
 	for {
 		u, more := <-urlsChan
 		if !more {
@@ -63,18 +64,24 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan error) {
 			continue
 		}
 
-		d := path.Join(w.dir, strings.Replace(u, "://", "-", 1))
-		os.MkdirAll(d, os.ModePerm)
+		// Run all workers on page and output html to reportChan
+		fullHTML := fmt.Sprintf("<a href='%s'><h2 align='center'>%s</h2></a><br>", u, u)
+		relDir := strings.Replace(u, "://", "-", 1)
+		absDir := path.Join(w.dir, relDir)
+		os.MkdirAll(absDir, os.ModePerm)
 		for i := uint8(1); i <= 3; i++ {
 			for _, t := range w.tasks {
 				if t.Priority() == i {
-					if err = t.Run(*w.ctx, u, d, w.chrome); err != nil {
+					html, err := t.Run(*w.ctx, u, absDir, relDir, w.chrome)
+					if err != nil {
 						errorChan <- fmt.Errorf("failed to run task: %v", err)
 					}
+					fullHTML += "<h4>" + t.Name() + "</h4><br>" + html + "<br>"
 				}
 			}
 		}
 		w.chrome.Release()
+		reportChan <- fullHTML
 	}
 }
 
@@ -113,8 +120,9 @@ func main() {
 
 	urlsChan := make(chan string)
 	errorChan := make(chan error)
-	wg := &sync.WaitGroup{}
-	wg.Add(*numThreads)
+	reportChan := make(chan string)
+	workerWg := &sync.WaitGroup{}
+	workerWg.Add(*numThreads)
 	workers := make([]*Worker, *numThreads)
 	tasks := getTasks()
 	for i := range workers {
@@ -123,12 +131,12 @@ func main() {
 			dir:        dir,
 			dimensions: [2]int{*width, *height},
 			pool:       pool,
-			wg:         wg,
+			wg:         workerWg,
 			tasks:      tasks,
 			wait:       *wait,
 		}
 		workers[i] = w
-		go w.Work(urlsChan, errorChan)
+		go w.Work(urlsChan, errorChan, reportChan)
 	}
 
 	// Read targets line by line and dispatch to workers
@@ -140,10 +148,12 @@ func main() {
 
 	tscanner := bufio.NewScanner(tfile)
 	re := regexp.MustCompile("^https?://")
+	reportWg := &sync.WaitGroup{}
 	go func() {
 		defer close(urlsChan)
 		for tscanner.Scan() {
 			u := tscanner.Text()
+			reportWg.Add(1)
 			if !re.MatchString(u) {
 				u = "https://" + u
 			}
@@ -157,7 +167,7 @@ func main() {
 		}
 	}()
 
-	// Report errors
+	// Report errors to stderr
 	go func() {
 		l := log.New(os.Stderr, "ERROR: ", 0)
 		for {
@@ -166,5 +176,21 @@ func main() {
 		}
 	}()
 
-	wg.Wait()
+	// Generate the report
+	var reportHTML string
+	go func() {
+		for {
+			row := <-reportChan
+			reportHTML += row + "<br><br>"
+			reportWg.Done()
+		}
+	}()
+
+	workerWg.Wait()
+	reportWg.Wait()
+
+	start := `<html><head><title>SpyDOM Report</title></head><body>`
+	end := `</body></html>`
+	reportHTML = start + reportHTML + end
+	ioutil.WriteFile(path.Join(dir, "report.html"), []byte(reportHTML), 0644)
 }
