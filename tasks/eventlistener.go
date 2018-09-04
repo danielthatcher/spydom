@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/chromedp/chromedp"
+	"github.com/ditashi/jsbeautifier-go/jsbeautifier"
 )
 
 // EventListener extracts the functions listening for message events from the DOM
@@ -67,6 +68,11 @@ func (t *EventListener) Run(ctx context.Context, url string, absDir string, relD
 
 	var html string
 	for name, v := range res {
+		formatted, err := jsbeautifier.Beautify(&v, jsbeautifier.DefaultOptions())
+		if err == nil {
+			v = formatted
+		}
+
 		// File
 		p := path.Join(d, name)
 		err = ioutil.WriteFile(p, []byte(v), 0644)
