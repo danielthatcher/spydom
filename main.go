@@ -21,14 +21,15 @@ import (
 
 // Worker represents the tasks for a thread
 type Worker struct {
-	ctx        *context.Context
-	chrome     *chromedp.Res
-	dir        string
-	dimensions [2]int
-	pool       *chromedp.Pool
-	tasks      []Task
-	wait       time.Duration
-	wg         *sync.WaitGroup
+	ctx         *context.Context
+	chrome      *chromedp.Res
+	dir         string
+	dimensions  [2]int
+	pool        *chromedp.Pool
+	preserveDir bool
+	tasks       []Task
+	wait        time.Duration
+	wg          *sync.WaitGroup
 }
 
 // Load naviagates to the given URL, and waits for the page to load
@@ -58,17 +59,29 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, reportChan
 			return
 		}
 
+		// Output dir
+		relDir := strings.Replace(u, "://", "-", 1)
+		absDir := path.Join(w.dir, relDir)
+		reportFile := path.Join(absDir, "report.html")
+		if w.preserveDir {
+			// Skip running again if the report file already exists
+			b, err := ioutil.ReadFile(reportFile)
+			if err == nil {
+				reportChan <- string(b)
+				continue
+			}
+		}
+		os.MkdirAll(absDir, os.ModePerm)
+
 		err := w.Load(u)
 		if err != nil {
 			errorChan <- fmt.Errorf("failed to load %v: %v", u, err)
+			reportChan <- "Failed to load"
 			continue
 		}
 
 		// Run all workers on page and output html to reportChan
 		fullHTML := fmt.Sprintf("<a href='%s'><h2 align='center'>%s</h2></a><br>", u, u)
-		relDir := strings.Replace(u, "://", "-", 1)
-		absDir := path.Join(w.dir, relDir)
-		os.MkdirAll(absDir, os.ModePerm)
 		for i := uint8(1); i <= 3; i++ {
 			for _, t := range w.tasks {
 				if t.Priority() == i {
@@ -81,6 +94,7 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, reportChan
 			}
 		}
 		w.chrome.Release()
+		ioutil.WriteFile(reportFile, []byte(fullHTML), os.ModePerm)
 		reportChan <- fullHTML
 	}
 }
@@ -98,6 +112,7 @@ func main() {
 	relDir := flag.StringP("output", "o", "spydom_output", "The directory to store output in")
 	width := flag.IntP("width", "", 1920, "The width of the chrome window to use")
 	height := flag.IntP("height", "", 1080, "The height of the chrome window to use")
+	preserverDir := flag.BoolP("preserve-output", "", false, "If the directory for a host exists, use the existing results instead of overwriting with new output")
 	flag.Parse()
 
 	if flag.NArg() != 1 || flag.Arg(0) == "" {
@@ -127,13 +142,14 @@ func main() {
 	tasks := getTasks()
 	for i := range workers {
 		w := &Worker{
-			ctx:        &ctx,
-			dir:        dir,
-			dimensions: [2]int{*width, *height},
-			pool:       pool,
-			wg:         workerWg,
-			tasks:      tasks,
-			wait:       *wait,
+			ctx:         &ctx,
+			dir:         dir,
+			dimensions:  [2]int{*width, *height},
+			pool:        pool,
+			preserveDir: *preserverDir,
+			wg:          workerWg,
+			tasks:       tasks,
+			wait:        *wait,
 		}
 		workers[i] = w
 		go w.Work(urlsChan, errorChan, reportChan)
