@@ -18,12 +18,12 @@ func (t *Screenshot) Name() string {
 	return "Screenshot"
 }
 
-func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir string, c *chromedp.Res) (string, error) {
+func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir string) (string, error) {
 	var buf []byte
 	tasks := chromedp.Tasks{
 		chromedp.CaptureScreenshot(&buf),
 	}
-	err := c.Run(ctx, tasks)
+	err := chromedp.Run(ctx, tasks)
 	if err != nil {
 		return "", err
 	}

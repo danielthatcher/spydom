@@ -15,17 +15,13 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/chromedp/chromedp/runner"
 	flag "github.com/spf13/pflag"
 )
 
 // Worker represents the tasks for a thread
 type Worker struct {
 	ctx         *context.Context
-	chrome      *chromedp.Res
 	dir         string
-	dimensions  [2]int
-	pool        *chromedp.Pool
 	preserveDir bool
 	tasks       []Task
 	wait        time.Duration
@@ -34,15 +30,10 @@ type Worker struct {
 
 // Load naviagates to the given URL, and waits for the page to load
 func (w *Worker) Load(u string) error {
-	c, err := w.pool.Allocate(*w.ctx, runner.WindowSize(w.dimensions[0], w.dimensions[1]))
-	if err != nil {
-		return fmt.Errorf("error allocating new instance from pool: %v", err)
-	}
-	w.chrome = c
 	tasks := chromedp.Tasks{
 		chromedp.Navigate(u),
 	}
-	err = w.chrome.Run(*w.ctx, tasks)
+	err := chromedp.Run(*w.ctx, tasks)
 	if err == nil {
 		time.Sleep(w.wait)
 	}
@@ -85,7 +76,7 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, reportChan
 		for i := uint8(1); i <= 3; i++ {
 			for _, t := range w.tasks {
 				if t.Priority() == i {
-					html, err := t.Run(*w.ctx, u, absDir, relDir, w.chrome)
+					html, err := t.Run(*w.ctx, u, absDir, relDir)
 					if err != nil {
 						errorChan <- fmt.Errorf("failed to run task: %v", err)
 					}
@@ -93,7 +84,6 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, reportChan
 				}
 			}
 		}
-		w.chrome.Release()
 		ioutil.WriteFile(reportFile, []byte(fullHTML), os.ModePerm)
 		reportChan <- fullHTML
 	}
@@ -110,8 +100,6 @@ func main() {
 	numThreads := flag.IntP("threads", "t", 10, "Number of threads to run")
 	wait := flag.DurationP("wait", "w", 2*time.Second, "Number of milliseconds to wait for page to load before running tasks")
 	relDir := flag.StringP("output", "o", "spydom_output", "The directory to store output in")
-	width := flag.IntP("width", "", 1920, "The width of the chrome window to use")
-	height := flag.IntP("height", "", 1080, "The height of the chrome window to use")
 	preserverDir := flag.BoolP("preserve-output", "", false, "If the directory for a host exists, use the existing results instead of overwriting with new output")
 	flag.Parse()
 
@@ -125,14 +113,6 @@ func main() {
 		log.Fatalf("Failed to open output directory: %v\n", err)
 	}
 
-	// Create a new chrome pool and the workers
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	pool, err := chromedp.NewPool()
-	if err != nil {
-		log.Fatalf("failed to create chromedp pool: %v\n", err)
-	}
-
 	urlsChan := make(chan string)
 	errorChan := make(chan error)
 	reportChan := make(chan string)
@@ -141,11 +121,15 @@ func main() {
 	workers := make([]*Worker, *numThreads)
 	tasks := getTasks()
 	for i := range workers {
+		ctx, cancel := chromedp.NewContext(context.Background())
+		if err := chromedp.Run(ctx); err != nil {
+			log.Fatalf("Failed to launch chrome insance: %v\n", err)
+		}
+		defer cancel()
+
 		w := &Worker{
 			ctx:         &ctx,
 			dir:         dir,
-			dimensions:  [2]int{*width, *height},
-			pool:        pool,
 			preserveDir: *preserverDir,
 			wg:          workerWg,
 			tasks:       tasks,

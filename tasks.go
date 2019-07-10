@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 
-	"github.com/chromedp/chromedp"
 	"gitlab.com/dcthatch/spydom/tasks"
 )
 
@@ -16,7 +15,7 @@ type Task interface {
 	Priority() uint8
 
 	// Run runs the task, saving the results in the given directory and returning the HTML to display those results.
-	Run(ctx context.Context, url string, absDir string, relDir string, c *chromedp.Res) (string, error)
+	Run(ctx context.Context, url string, absDir string, relDir string) (string, error)
 
 	// Name returns the name of the plugin that should be used for reporting
 	Name() string

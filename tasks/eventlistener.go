@@ -25,7 +25,7 @@ func (t *EventListener) Name() string {
 	return fmt.Sprintf("%s Listeners", strings.Title(t.Event))
 }
 
-func (t *EventListener) Run(ctx context.Context, url string, absDir string, relDir string, c *chromedp.Res) (string, error) {
+func (t *EventListener) Run(ctx context.Context, url string, absDir string, relDir string) (string, error) {
 	f := fmt.Sprintf(`
 		let nodes = [window, document];
 		let elements = document.querySelectorAll("*");
@@ -54,7 +54,7 @@ func (t *EventListener) Run(ctx context.Context, url string, absDir string, relD
 	tasks := chromedp.Tasks{
 		chromedp.EvaluateAsDevTools(f, &res),
 	}
-	err := c.Run(ctx, tasks)
+	err := chromedp.Run(ctx, tasks)
 	if err != nil {
 		return "", err
 	}
