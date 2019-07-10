@@ -25,7 +25,7 @@ func (t *EventListener) Name() string {
 	return fmt.Sprintf("%s Listeners", strings.Title(t.Event))
 }
 
-func (t *EventListener) Run(ctx context.Context, url string, absDir string, relDir string) (string, error) {
+func (t *EventListener) Run(ctx context.Context, url string, absDir string, relDir string) error {
 	f := fmt.Sprintf(`
 		let nodes = [window, document];
 		let elements = document.querySelectorAll("*");
@@ -56,17 +56,16 @@ func (t *EventListener) Run(ctx context.Context, url string, absDir string, relD
 	}
 	err := chromedp.Run(ctx, tasks)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// Output
 	d := path.Join(absDir, "listeners", t.Event)
 	err = os.MkdirAll(d, os.ModePerm)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	var html string
 	for name, v := range res {
 		formatted, err := jsbeautifier.Beautify(&v, jsbeautifier.DefaultOptions())
 		if err == nil {
@@ -77,12 +76,9 @@ func (t *EventListener) Run(ctx context.Context, url string, absDir string, relD
 		p := path.Join(d, name)
 		err = ioutil.WriteFile(p, []byte(v), 0644)
 		if err != nil {
-			return "", err
+			return err
 		}
-
-		//HTML
-		html += fmt.Sprintf("<h5>%s</h5>\n<pre>%s</pre><br><br>", name, v)
 	}
 
-	return html, nil
+	return nil
 }

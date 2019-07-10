@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"path"
@@ -22,7 +21,7 @@ func (t *Screenshot) Name() string {
 	return "Screenshot"
 }
 
-func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir string) (string, error) {
+func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir string) error {
 	var buf []byte
 	tasks := chromedp.Tasks{chromedp.ActionFunc(func(ctx context.Context) error {
 		_, _, contentSize, err := page.GetLayoutMetrics().Do(ctx)
@@ -50,7 +49,6 @@ func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir 
 				Height: contentSize.Height,
 				Scale:  1,
 			}).Do(ctx)
-		fmt.Println(buf)
 
 		if err != nil {
 			return err
@@ -61,14 +59,13 @@ func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir 
 
 	err := chromedp.Run(ctx, tasks)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	err = ioutil.WriteFile(path.Join(absDir, "screenshot.png"), buf, 0644)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	html := "<img src='" + path.Join(relDir, "screenshot.png") + "' />"
-	return html, nil
+	return nil
 }

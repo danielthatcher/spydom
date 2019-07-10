@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -42,7 +41,7 @@ func (w *Worker) Load(u string) error {
 
 // Work reads URLs from the given channel, loads them, and then performs any
 // tasks on the loaded page.
-func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, reportChan chan<- string) {
+func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 	for {
 		u, more := <-urlsChan
 		if !more {
@@ -53,39 +52,25 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, reportChan
 		// Output dir
 		relDir := strings.Replace(u, "://", "-", 1)
 		absDir := path.Join(w.dir, relDir)
-		reportFile := path.Join(absDir, "report.html")
-		if w.preserveDir {
-			// Skip running again if the report file already exists
-			b, err := ioutil.ReadFile(reportFile)
-			if err == nil {
-				reportChan <- string(b)
-				continue
-			}
-		}
 		os.MkdirAll(absDir, os.ModePerm)
 
 		err := w.Load(u)
 		if err != nil {
 			errorChan <- fmt.Errorf("failed to load %v: %v", u, err)
-			reportChan <- "Failed to load"
 			continue
 		}
 
-		// Run all workers on page and output html to reportChan
-		fullHTML := fmt.Sprintf("<a href='%s'><h2 align='center'>%s</h2></a><br>", u, u)
+		// Run all workers on page
 		for i := uint8(1); i <= 3; i++ {
 			for _, t := range w.tasks {
 				if t.Priority() == i {
-					html, err := t.Run(*w.ctx, u, absDir, relDir)
+					err := t.Run(*w.ctx, u, absDir, relDir)
 					if err != nil {
 						errorChan <- fmt.Errorf("failed to run task: %v", err)
 					}
-					fullHTML += "<h4>" + t.Name() + "</h4><br>" + html + "<br>"
 				}
 			}
 		}
-		ioutil.WriteFile(reportFile, []byte(fullHTML), os.ModePerm)
-		reportChan <- fullHTML
 	}
 }
 
@@ -100,7 +85,6 @@ func main() {
 	numThreads := flag.IntP("threads", "t", 10, "Number of threads to run")
 	wait := flag.DurationP("wait", "w", 2*time.Second, "Number of milliseconds to wait for page to load before running tasks")
 	relDir := flag.StringP("output", "o", "spydom_output", "The directory to store output in")
-	preserverDir := flag.BoolP("preserve-output", "", false, "If the directory for a host exists, use the existing results instead of overwriting with new output")
 	flag.Parse()
 
 	if flag.NArg() != 1 || flag.Arg(0) == "" {
@@ -115,7 +99,6 @@ func main() {
 
 	urlsChan := make(chan string)
 	errorChan := make(chan error)
-	reportChan := make(chan string)
 	workerWg := &sync.WaitGroup{}
 	workerWg.Add(*numThreads)
 	workers := make([]*Worker, *numThreads)
@@ -128,15 +111,14 @@ func main() {
 		defer cancel()
 
 		w := &Worker{
-			ctx:         &ctx,
-			dir:         dir,
-			preserveDir: *preserverDir,
-			wg:          workerWg,
-			tasks:       tasks,
-			wait:        *wait,
+			ctx:   &ctx,
+			dir:   dir,
+			wg:    workerWg,
+			tasks: tasks,
+			wait:  *wait,
 		}
 		workers[i] = w
-		go w.Work(urlsChan, errorChan, reportChan)
+		go w.Work(urlsChan, errorChan)
 	}
 
 	// Read targets line by line and dispatch to workers
@@ -148,12 +130,10 @@ func main() {
 
 	tscanner := bufio.NewScanner(tfile)
 	re := regexp.MustCompile("^https?://")
-	reportWg := &sync.WaitGroup{}
 	go func() {
 		defer close(urlsChan)
 		for tscanner.Scan() {
 			u := tscanner.Text()
-			reportWg.Add(1)
 			if !re.MatchString(u) {
 				u = "https://" + u
 			}
@@ -176,21 +156,5 @@ func main() {
 		}
 	}()
 
-	// Generate the report
-	var reportHTML string
-	go func() {
-		for {
-			row := <-reportChan
-			reportHTML += row + "<br><br>"
-			reportWg.Done()
-		}
-	}()
-
 	workerWg.Wait()
-	reportWg.Wait()
-
-	start := `<html><head><title>SpyDOM Report</title></head><body>`
-	end := `</body></html>`
-	reportHTML = start + reportHTML + end
-	ioutil.WriteFile(path.Join(dir, "report.html"), []byte(reportHTML), 0644)
 }
