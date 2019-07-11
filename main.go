@@ -23,7 +23,9 @@ type Worker struct {
 	dir         string
 	id          int
 	preserveDir bool
+	retries     int
 	tasks       []Task
+	timeout     time.Duration
 	verbose     bool
 	wait        time.Duration
 	wg          *sync.WaitGroup
@@ -37,12 +39,14 @@ func (w *Worker) Load(u string) error {
 	tasks := chromedp.Tasks{
 		chromedp.Navigate(u),
 	}
-	err := chromedp.Run(*w.ctx, tasks)
+	ctx, cancel := context.WithTimeout(*w.ctx, w.timeout)
+	defer cancel()
+	err := chromedp.Run(ctx, tasks)
 	if err == nil {
 		time.Sleep(w.wait)
-	}
-	if w.verbose {
-		log.Printf("Worker %d: loaded %s\n", w.id, u)
+		if w.verbose {
+			log.Printf("Worker %d: loaded %s\n", w.id, u)
+		}
 	}
 	return err
 }
@@ -62,9 +66,22 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 		absDir := path.Join(w.dir, relDir)
 		os.MkdirAll(absDir, os.ModePerm)
 
+		attempt := 1
 		err := w.Load(u)
-		if err != nil {
-			errorChan <- fmt.Errorf("failed to load %v: %v", u, err)
+		success := true
+		for err != nil {
+			if attempt >= w.retries {
+				errorChan <- fmt.Errorf("failed to load %v: %v; giving up after %d attempts", u, err, attempt)
+				success = false
+				break
+			}
+
+			attempt++
+			errorChan <- fmt.Errorf("failed to load %v: %v; retrying (%d/%d)", u, err, attempt, w.retries)
+			err = w.Load(u)
+		}
+
+		if !success {
 			continue
 		}
 
@@ -93,7 +110,9 @@ func main() {
 	numThreads := flag.IntP("threads", "t", 10, "Number of threads to run")
 	wait := flag.DurationP("wait", "w", 2*time.Second, "Number of milliseconds to wait for page to load before running tasks")
 	relDir := flag.StringP("output", "o", "spydom_output", "The directory to store output in")
+	retries := flag.IntP("retries", "r", 3, "Maximum number of times to load earch URL when encountering errors")
 	verbose := flag.BoolP("verbose", "v", false, "Use verbose output")
+	timeout := flag.DurationP("timeout", "", 10*time.Second, "The time to allow for all tasks to be run on a page before giving up")
 	flag.Parse()
 
 	if flag.NArg() != 1 || flag.Arg(0) == "" {
@@ -123,10 +142,12 @@ func main() {
 			ctx:     &ctx,
 			dir:     dir,
 			id:      i,
-			wg:      workerWg,
+			retries: *retries,
 			tasks:   tasks,
+			timeout: *timeout,
 			verbose: *verbose,
 			wait:    *wait,
+			wg:      workerWg,
 		}
 		workers[i] = w
 		go w.Work(urlsChan, errorChan)
