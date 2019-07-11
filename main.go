@@ -24,13 +24,16 @@ type Worker struct {
 	id          int
 	preserveDir bool
 	tasks       []Task
+	verbose     bool
 	wait        time.Duration
 	wg          *sync.WaitGroup
 }
 
 // Load naviagates to the given URL, and waits for the page to load
 func (w *Worker) Load(u string) error {
-	log.Printf("Worker %d: loading %s\n", w.id, u)
+	if w.verbose {
+		log.Printf("Worker %d: loading %s\n", w.id, u)
+	}
 	tasks := chromedp.Tasks{
 		chromedp.Navigate(u),
 	}
@@ -38,7 +41,9 @@ func (w *Worker) Load(u string) error {
 	if err == nil {
 		time.Sleep(w.wait)
 	}
-	log.Printf("Worker %d: loaded %s\n", w.id, u)
+	if w.verbose {
+		log.Printf("Worker %d: loaded %s\n", w.id, u)
+	}
 	return err
 }
 
@@ -88,6 +93,7 @@ func main() {
 	numThreads := flag.IntP("threads", "t", 10, "Number of threads to run")
 	wait := flag.DurationP("wait", "w", 2*time.Second, "Number of milliseconds to wait for page to load before running tasks")
 	relDir := flag.StringP("output", "o", "spydom_output", "The directory to store output in")
+	verbose := flag.BoolP("verbose", "v", false, "Use verbose output")
 	flag.Parse()
 
 	if flag.NArg() != 1 || flag.Arg(0) == "" {
@@ -114,12 +120,13 @@ func main() {
 		defer cancel()
 
 		w := &Worker{
-			ctx:   &ctx,
-			dir:   dir,
-			id:    i,
-			wg:    workerWg,
-			tasks: tasks,
-			wait:  *wait,
+			ctx:     &ctx,
+			dir:     dir,
+			id:      i,
+			wg:      workerWg,
+			tasks:   tasks,
+			verbose: *verbose,
+			wait:    *wait,
 		}
 		workers[i] = w
 		go w.Work(urlsChan, errorChan)
