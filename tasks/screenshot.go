@@ -29,8 +29,8 @@ func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir 
 			return err
 		}
 
-		w := int64(math.Ceil(contentSize.Width))
-		h := int64(math.Ceil(contentSize.Height))
+		w := int64(math.Min(math.Ceil(contentSize.Width), 1000))
+		h := int64(math.Min(math.Ceil(contentSize.Height), 1000))
 		if w <= 0 || h <= 0 {
 			return nil
 		}
