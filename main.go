@@ -55,6 +55,12 @@ func (w *Worker) Load(u string) error {
 // tasks on the loaded page.
 func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 	for {
+		ctx, cancel := chromedp.NewContext(context.Background())
+		if err := chromedp.Run(ctx); err != nil {
+			log.Fatalf("Failed to launch chrome insance: %v\n", err)
+		}
+		w.ctx = &ctx
+
 		u, more := <-urlsChan
 		if !more {
 			w.wg.Done()
@@ -96,6 +102,9 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 				}
 			}
 		}
+
+		// Cleanup
+		cancel()
 	}
 }
 
@@ -132,14 +141,8 @@ func main() {
 	workers := make([]*Worker, *numThreads)
 	tasks := getTasks()
 	for i := range workers {
-		ctx, cancel := chromedp.NewContext(context.Background())
-		if err := chromedp.Run(ctx); err != nil {
-			log.Fatalf("Failed to launch chrome insance: %v\n", err)
-		}
-		defer cancel()
 
 		w := &Worker{
-			ctx:     &ctx,
 			dir:     dir,
 			id:      i,
 			retries: *retries,
