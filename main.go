@@ -21,6 +21,7 @@ import (
 type Worker struct {
 	ctx         *context.Context
 	dir         string
+	id          int
 	preserveDir bool
 	tasks       []Task
 	wait        time.Duration
@@ -29,6 +30,7 @@ type Worker struct {
 
 // Load naviagates to the given URL, and waits for the page to load
 func (w *Worker) Load(u string) error {
+	log.Printf("Worker %d: loading %s\n", w.id, u)
 	tasks := chromedp.Tasks{
 		chromedp.Navigate(u),
 	}
@@ -36,6 +38,7 @@ func (w *Worker) Load(u string) error {
 	if err == nil {
 		time.Sleep(w.wait)
 	}
+	log.Printf("Worker %d: loaded %s\n", w.id, u)
 	return err
 }
 
@@ -113,6 +116,7 @@ func main() {
 		w := &Worker{
 			ctx:   &ctx,
 			dir:   dir,
+			id:    i,
 			wg:    workerWg,
 			tasks: tasks,
 			wait:  *wait,
@@ -137,8 +141,6 @@ func main() {
 			if !re.MatchString(u) {
 				u = "https://" + u
 			}
-
-			log.Println(u)
 			urlsChan <- u
 		}
 
