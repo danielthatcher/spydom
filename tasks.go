@@ -25,5 +25,6 @@ func getTasks() []Task {
 	return []Task{
 		&tasks.Screenshot{},
 		&tasks.EventListener{Event: "message"},
+		&tasks.Location{},
 	}
 }
