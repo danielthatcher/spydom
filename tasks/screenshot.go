@@ -31,6 +31,9 @@ func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir 
 
 		w := int64(math.Ceil(contentSize.Width))
 		h := int64(math.Ceil(contentSize.Height))
+		if w <= 0 || h <= 0 {
+			return nil
+		}
 		err = emulation.SetDeviceMetricsOverride(w, h, 1, false).
 			WithScreenOrientation(&emulation.ScreenOrientation{
 				Type:  emulation.OrientationTypePortraitPrimary,
