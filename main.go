@@ -131,8 +131,14 @@ func main() {
 	workerWg.Add(*numThreads)
 	workers := make([]*Worker, *numThreads)
 	tasks := getTasks()
+	var ctx context.Context
 	for i := range workers {
-		ctx, cancel := chromedp.NewContext(context.Background())
+		var cancel context.CancelFunc
+		if ctx == nil {
+			ctx, cancel = chromedp.NewContext(context.Background())
+		} else {
+			ctx, cancel = chromedp.NewContext(ctx)
+		}
 		if err := chromedp.Run(ctx); err != nil {
 			log.Fatalf("Failed to launch chrome insance: %v\n", err)
 		}
