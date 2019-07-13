@@ -3,10 +3,8 @@ package tasks
 import (
 	"context"
 	"io/ioutil"
-	"math"
 	"path"
 
-	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
@@ -25,21 +23,6 @@ func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir 
 	var buf []byte
 	tasks := chromedp.Tasks{chromedp.ActionFunc(func(ctx context.Context) error {
 		_, _, contentSize, err := page.GetLayoutMetrics().Do(ctx)
-		if err != nil {
-			return err
-		}
-
-		w := int64(math.Min(math.Ceil(contentSize.Width), 1000))
-		h := int64(math.Min(math.Ceil(contentSize.Height), 1000))
-		if w <= 0 || h <= 0 {
-			return nil
-		}
-		err = emulation.SetDeviceMetricsOverride(w, h, 1, false).
-			WithScreenOrientation(&emulation.ScreenOrientation{
-				Type:  emulation.OrientationTypePortraitPrimary,
-				Angle: 0,
-			}).Do(ctx)
-
 		if err != nil {
 			return err
 		}
