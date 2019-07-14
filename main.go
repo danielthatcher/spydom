@@ -71,13 +71,13 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 		success := true
 		for err != nil {
 			if attempt >= w.retries {
-				errorChan <- fmt.Errorf("failed to load %v: %v; giving up after %d attempts", u, err, attempt)
+				errorChan <- fmt.Errorf("worker %d: failed to load %v: %v; giving up after %d attempts", w.id, u, err, attempt)
 				success = false
 				break
 			}
 
 			attempt++
-			errorChan <- fmt.Errorf("failed to load %v: %v; retrying (%d/%d)", u, err, attempt, w.retries)
+			errorChan <- fmt.Errorf("worker %d: failed to load %v: %v; retrying (%d/%d)", w.id, u, err, attempt, w.retries)
 			err = w.Load(u)
 		}
 
