@@ -19,10 +19,6 @@ func (t *JSRunner) Priority() uint8 {
 	return t.priority
 }
 
-func (t *JSRunner) Name() string {
-	return "Custom JavaScript"
-}
-
 func (t *JSRunner) Slug() string {
 	return "jsrunner"
 }

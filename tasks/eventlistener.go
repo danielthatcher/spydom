@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/chromedp/chromedp"
 	"github.com/ditashi/jsbeautifier-go/jsbeautifier"
@@ -20,10 +19,6 @@ type EventListener struct {
 
 func (t *EventListener) Priority() uint8 {
 	return 1
-}
-
-func (t *EventListener) Name() string {
-	return fmt.Sprintf("%s Listeners", strings.Title(t.Event))
 }
 
 func (t *EventListener) Slug() string {

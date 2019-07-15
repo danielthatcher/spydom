@@ -17,10 +17,6 @@ func (t *Screenshot) Priority() uint8 {
 	return 1
 }
 
-func (t *Screenshot) Name() string {
-	return "Screenshot"
-}
-
 func (t *Screenshot) Slug() string {
 	return "screenshot"
 }

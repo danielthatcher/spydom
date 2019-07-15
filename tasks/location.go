@@ -17,10 +17,6 @@ func (t *Location) Priority() uint8 {
 	return 1
 }
 
-func (t *Location) Name() string {
-	return "Location"
-}
-
 func (t *Location) Slug() string {
 	return "location"
 }
