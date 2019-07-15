@@ -23,6 +23,14 @@ func (t *Screenshot) Name() string {
 	return "Screenshot"
 }
 
+func (t *Screenshot) Slug() string {
+	return "screenshot"
+}
+
+func (t *Screenshot) Description() string {
+	return "Take a screenshot of the page"
+}
+
 func (t *Screenshot) Init(c *config.Config) {
 }
 

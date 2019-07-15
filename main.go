@@ -111,7 +111,16 @@ func main() {
 	flag.IntVarP(&conf.Retries, "retries", "r", 3, "Maximum number of times to load earch URL when encountering errors")
 	flag.BoolVarP(&conf.Verbose, "verbose", "v", false, "Use verbose output")
 	flag.DurationVarP(&conf.Timeout, "timeout", "", 10*time.Second, "The time to allow for all tasks to be run on a page before giving up")
+	flag.StringSliceVarP(&conf.Enabled, "enable", "e", nil, "Enable only the specified modules")
+	flag.StringSliceVarP(&conf.Disabled, "disable", "d", nil, "Disable these modules")
+
+	list := flag.BoolP("list-tasks", "l", false, "List tasks and exit")
 	flag.Parse()
+
+	if *list {
+		listTasks()
+		os.Exit(0)
+	}
 
 	if flag.NArg() != 1 || flag.Arg(0) == "" {
 		fmt.Println("Please supply a targets file")

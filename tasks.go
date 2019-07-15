@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"text/tabwriter"
 
 	"gitlab.com/dcthatch/spydom/config"
 	"gitlab.com/dcthatch/spydom/tasks"
@@ -21,20 +24,73 @@ type Task interface {
 	// Name returns the name of the plugin that should be used for reporting
 	Name() string
 
+	// Slug returns the command-line friendly name that is used to enable or disable the module
+	Slug() string
+
+	// Description returns a description of the task
+	Description() string
+
 	// Init takes a Config object and initialises the task
 	Init(c *config.Config)
 }
 
-func getTasks(config *config.Config) []Task {
-	tasks := []Task{
+func allTasks() []Task {
+	return []Task{
 		&tasks.Screenshot{},
 		&tasks.EventListener{Event: "message"},
 		&tasks.EventListener{Event: "hashchange"},
 		&tasks.Location{},
 	}
 
+}
+
+func listTasks() {
+	tasks := allTasks()
+
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
+	fmt.Fprintln(w, "Name\t\tDescription")
+	for _, t := range tasks {
+		fmt.Fprintf(w, "%v\t%s\n", t.Slug(), t.Description())
+	}
+	w.Flush()
+}
+
+func getTasks(c *config.Config) []Task {
+	tasks := allTasks()
 	for i := range tasks {
-		tasks[i].Init(config)
+		tasks[i].Init(c)
+	}
+
+	if c.Enabled != nil {
+		newTasks := []Task{}
+		for _, slug := range c.Enabled {
+			for _, t := range tasks {
+				if t.Slug() == slug {
+					newTasks = append(newTasks, t)
+					break
+				}
+			}
+		}
+		tasks = newTasks
+	}
+
+	if c.Disabled != nil {
+		newTasks := []Task{}
+		for _, t := range tasks {
+			enabled := true
+			for _, slug := range c.Disabled {
+				if t.Slug() == slug {
+					enabled = false
+					break
+				}
+			}
+
+			if enabled {
+				newTasks = append(newTasks, t)
+			}
+		}
+		tasks = newTasks
 	}
 
 	return tasks

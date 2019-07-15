@@ -21,6 +21,14 @@ func (t *Location) Name() string {
 	return "Location"
 }
 
+func (t *Location) Slug() string {
+	return "location"
+}
+
+func (t *Location) Description() string {
+	return "Save the requested URL and the final URL of the loaded page"
+}
+
 func (t *Location) Init(c *config.Config) {
 }
 

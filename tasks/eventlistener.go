@@ -26,6 +26,14 @@ func (t *EventListener) Name() string {
 	return fmt.Sprintf("%s Listeners", strings.Title(t.Event))
 }
 
+func (t *EventListener) Slug() string {
+	return t.Event
+}
+
+func (t *EventListener) Description() string {
+	return fmt.Sprintf("Extract all %s events from the page", t.Event)
+}
+
 func (t *EventListener) Init(c *config.Config) {
 }
 

@@ -10,4 +10,6 @@ type Config struct {
 	Retries    int
 	Verbose    bool
 	Timeout    time.Duration
+	Enabled    []string
+	Disabled   []string
 }
