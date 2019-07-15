@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"gitlab.com/dcthatch/spydom/config"
 	"gitlab.com/dcthatch/spydom/tasks"
 )
 
@@ -19,13 +20,22 @@ type Task interface {
 
 	// Name returns the name of the plugin that should be used for reporting
 	Name() string
+
+	// Init takes a Config object and initialises the task
+	Init(c *config.Config)
 }
 
-func getTasks() []Task {
-	return []Task{
+func getTasks(config *config.Config) []Task {
+	tasks := []Task{
 		&tasks.Screenshot{},
 		&tasks.EventListener{Event: "message"},
 		&tasks.EventListener{Event: "hashchange"},
 		&tasks.Location{},
 	}
+
+	for i := range tasks {
+		tasks[i].Init(config)
+	}
+
+	return tasks
 }

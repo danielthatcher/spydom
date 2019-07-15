@@ -10,6 +10,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 	"github.com/ditashi/jsbeautifier-go/jsbeautifier"
+	"gitlab.com/dcthatch/spydom/config"
 )
 
 // EventListener extracts the functions listening for message events from the DOM
@@ -23,6 +24,9 @@ func (t *EventListener) Priority() uint8 {
 
 func (t *EventListener) Name() string {
 	return fmt.Sprintf("%s Listeners", strings.Title(t.Event))
+}
+
+func (t *EventListener) Init(c *config.Config) {
 }
 
 func (t *EventListener) Run(ctx context.Context, url string, absDir string, relDir string) error {

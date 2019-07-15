@@ -7,6 +7,7 @@ import (
 	"path"
 
 	"github.com/chromedp/chromedp"
+	"gitlab.com/dcthatch/spydom/config"
 )
 
 // The Location task saves the requested url and final location to files
@@ -18,6 +19,9 @@ func (t *Location) Priority() uint8 {
 
 func (t *Location) Name() string {
 	return "Location"
+}
+
+func (t *Location) Init(c *config.Config) {
 }
 
 func (t *Location) Run(ctx context.Context, url string, absDir string, relDir string) error {

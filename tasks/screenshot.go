@@ -7,9 +7,13 @@ import (
 
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
+	"gitlab.com/dcthatch/spydom/config"
 )
 
-type Screenshot struct{}
+type Screenshot struct {
+	width  int
+	height int
+}
 
 func (t *Screenshot) Priority() uint8 {
 	return 1
@@ -17,6 +21,9 @@ func (t *Screenshot) Priority() uint8 {
 
 func (t *Screenshot) Name() string {
 	return "Screenshot"
+}
+
+func (t *Screenshot) Init(c *config.Config) {
 }
 
 func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir string) error {
