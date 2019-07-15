@@ -29,7 +29,8 @@ func (t *Location) Description() string {
 	return "Save the requested URL and the final URL of the loaded page"
 }
 
-func (t *Location) Init(c *config.Config) {
+func (t *Location) Init(c *config.Config) error {
+	return nil
 }
 
 func (t *Location) Run(ctx context.Context, url string, absDir string, relDir string) error {

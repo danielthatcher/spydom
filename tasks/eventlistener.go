@@ -34,7 +34,8 @@ func (t *EventListener) Description() string {
 	return fmt.Sprintf("Extract all %s events from the page", t.Event)
 }
 
-func (t *EventListener) Init(c *config.Config) {
+func (t *EventListener) Init(c *config.Config) error {
+	return nil
 }
 
 func (t *EventListener) Run(ctx context.Context, url string, absDir string, relDir string) error {

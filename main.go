@@ -81,13 +81,14 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 			continue
 		}
 
-		// Run all workers on page
-		for i := uint8(1); i <= 3; i++ {
+		// Run all workers on page. Start at 0 and go to 4 in as these are valid
+		// priorities for the jsrunner module
+		for i := uint8(0); i <= 4; i++ {
 			for _, t := range w.tasks {
 				if t.Priority() == i {
 					err := t.Run(*w.ctx, u, absDir, relDir)
 					if err != nil {
-						errorChan <- fmt.Errorf("failed to run task: %v", err)
+						errorChan <- fmt.Errorf("failed to run task %v: %v", t.Slug(), err)
 					}
 				}
 			}
@@ -114,10 +115,14 @@ func main() {
 	flag.StringSliceVarP(&conf.Enabled, "enable", "e", nil, "Enable only the specified modules")
 	flag.StringSliceVarP(&conf.Disabled, "disable", "d", nil, "Disable these modules")
 
-	list := flag.BoolP("list-tasks", "l", false, "List tasks and exit")
+	flag.StringVarP(&conf.JS, "js", "", "", "JavaScript to run with the jsrunner module")
+	flag.StringVarP(&conf.JSFile, "js-file", "", "", "A file containing JavaScript to run with the jsrunner module")
+	flag.Uint8VarP(&conf.JSPriority, "js-priority", "", 4, "The run priority for the jsrunner module, between 0 and 4. Modules with lower priorities get run sooner.")
+
+	ls := flag.BoolP("list-tasks", "l", false, "List tasks and exit")
 	flag.Parse()
 
-	if *list {
+	if *ls {
 		listTasks()
 		os.Exit(0)
 	}
@@ -134,12 +139,15 @@ func main() {
 	}
 	conf.OutDir = dir
 
+	tasks, err := getTasks(&conf)
+	if err != nil {
+		log.Fatal(err)
+	}
 	urlsChan := make(chan string)
 	errorChan := make(chan error)
 	workerWg := &sync.WaitGroup{}
 	workerWg.Add(conf.NumThreads)
 	workers := make([]*Worker, conf.NumThreads)
-	tasks := getTasks(&conf)
 	var ctx *context.Context
 	for i := range workers {
 		var cancel context.CancelFunc

@@ -11,8 +11,6 @@ import (
 )
 
 type Screenshot struct {
-	width  int
-	height int
 }
 
 func (t *Screenshot) Priority() uint8 {
@@ -31,7 +29,8 @@ func (t *Screenshot) Description() string {
 	return "Take a screenshot of the page"
 }
 
-func (t *Screenshot) Init(c *config.Config) {
+func (t *Screenshot) Init(c *config.Config) error {
+	return nil
 }
 
 func (t *Screenshot) Run(ctx context.Context, url string, absDir string, relDir string) error {

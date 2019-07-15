@@ -12,4 +12,7 @@ type Config struct {
 	Timeout    time.Duration
 	Enabled    []string
 	Disabled   []string
+	JS         string
+	JSFile     string
+	JSPriority uint8
 }

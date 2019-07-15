@@ -31,7 +31,7 @@ type Task interface {
 	Description() string
 
 	// Init takes a Config object and initialises the task
-	Init(c *config.Config)
+	Init(c *config.Config) error
 }
 
 func allTasks() []Task {
@@ -40,6 +40,7 @@ func allTasks() []Task {
 		&tasks.EventListener{Event: "message"},
 		&tasks.EventListener{Event: "hashchange"},
 		&tasks.Location{},
+		&tasks.JSRunner{},
 	}
 
 }
@@ -56,7 +57,7 @@ func listTasks() {
 	w.Flush()
 }
 
-func getTasks(c *config.Config) []Task {
+func getTasks(c *config.Config) ([]Task, error) {
 	tasks := allTasks()
 	for i := range tasks {
 		tasks[i].Init(c)
@@ -73,6 +74,15 @@ func getTasks(c *config.Config) []Task {
 			}
 		}
 		tasks = newTasks
+	}
+
+	// Disable the jsrunner module if --js or --js-file are not specified
+	if c.JS == "" && c.JSFile == "" {
+		if c.Disabled == nil {
+			c.Disabled = []string{"jsrunner"}
+		} else {
+			c.Disabled = append(c.Disabled, "jsrunner")
+		}
 	}
 
 	if c.Disabled != nil {
@@ -93,5 +103,5 @@ func getTasks(c *config.Config) []Task {
 		tasks = newTasks
 	}
 
-	return tasks
+	return tasks, nil
 }
