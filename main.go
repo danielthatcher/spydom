@@ -122,6 +122,7 @@ func main() {
 
 	ls := flag.BoolP("list-tasks", "l", false, "List tasks and exit")
 	insecure := flag.BoolP("insecure", "k", false, "Ignore certificate errors")
+	visible := flag.BoolP("visible", "", false, "Show the Chrome window rather than running in headless mode")
 	flag.Parse()
 
 	if *ls {
@@ -141,6 +142,10 @@ func main() {
 	}
 	conf.OutDir = dir
 
+	// User options controlling chrome
+	certParams := security.SetIgnoreCertificateErrors(*insecure)
+	opts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", !*visible))
+
 	tasks, err := getTasks(&conf)
 	if err != nil {
 		log.Fatal(err)
@@ -150,13 +155,13 @@ func main() {
 	workerWg := &sync.WaitGroup{}
 	workerWg.Add(conf.NumThreads)
 	workers := make([]*Worker, conf.NumThreads)
-	certParams := security.SetIgnoreCertificateErrors(*insecure)
 	var ctx *context.Context
 	for i := range workers {
 		var cancel context.CancelFunc
 		var newCtx context.Context
 		if ctx == nil {
-			newCtx, cancel = chromedp.NewContext(context.Background())
+			newCtx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
+			newCtx, cancel = chromedp.NewContext(newCtx)
 		} else {
 			newCtx, cancel = chromedp.NewContext(*ctx)
 		}
