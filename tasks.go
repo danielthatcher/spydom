@@ -39,6 +39,7 @@ func allTasks() []Task {
 		&tasks.JSRunner{},
 		&tasks.Location{},
 		&tasks.OuterHTML{},
+		&tasks.Title{},
 	}
 
 }
