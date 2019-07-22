@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/security"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 	"gitlab.com/dcthatch/spydom/config"
@@ -120,6 +121,7 @@ func main() {
 	flag.Uint8VarP(&conf.JSPriority, "js-priority", "", 4, "The run priority for the jsrunner module, between 0 and 4. Modules with lower priorities get run sooner.")
 
 	ls := flag.BoolP("list-tasks", "l", false, "List tasks and exit")
+	insecure := flag.BoolP("insecure", "k", false, "Ignore certificate errors")
 	flag.Parse()
 
 	if *ls {
@@ -148,6 +150,7 @@ func main() {
 	workerWg := &sync.WaitGroup{}
 	workerWg.Add(conf.NumThreads)
 	workers := make([]*Worker, conf.NumThreads)
+	certParams := security.SetIgnoreCertificateErrors(*insecure)
 	var ctx *context.Context
 	for i := range workers {
 		var cancel context.CancelFunc
@@ -157,7 +160,7 @@ func main() {
 		} else {
 			newCtx, cancel = chromedp.NewContext(*ctx)
 		}
-		if err := chromedp.Run(newCtx); err != nil {
+		if err := chromedp.Run(newCtx, certParams); err != nil {
 			log.Fatalf("Failed to launch chrome insance: %v\n", err)
 		}
 		defer cancel()
