@@ -24,7 +24,7 @@ func (t *JSRunner) Slug() string {
 }
 
 func (t *JSRunner) Description() string {
-	return "Run custom JavaScript on the page. JavaScript can be supplied directly with the --js flag, or from the file given by the --js-file flag. This module is only enabled if the --js or --js-file flags are specified. Values are returned from variables in JSON or dictionary format by putting just the variable as a statement, e.g. 'x={\"d\":document.domain}; x'."
+	return "Run custom JavaScript on the page. JavaScript can be supplied directly with the --js flag, or from the file given by the --js-file flag. This module is only enabled if the --js or --js-file flags are specified. Values are returned from variables in string format by putting just the variable as a statement, e.g. 'x=document.domain; x'."
 }
 
 func (t *JSRunner) Init(c *config.Config) error {
@@ -51,7 +51,7 @@ func (t *JSRunner) Init(c *config.Config) error {
 }
 
 func (t *JSRunner) Run(ctx context.Context, url string, absDir string, relDir string) error {
-	var res map[string]string
+	var res string
 	tasks := chromedp.Tasks{
 		chromedp.EvaluateAsDevTools(t.script, &res),
 	}
@@ -60,13 +60,9 @@ func (t *JSRunner) Run(ctx context.Context, url string, absDir string, relDir st
 		return fmt.Errorf("failed to run custom JavaScript: %v", err)
 	}
 
-	resStr := ""
-	for k, v := range res {
-		resStr = fmt.Sprintf("%s%s=%s\n", resStr, k, v)
-	}
-
+	res = fmt.Sprintf("%s\n", res)
 	f := path.Join(absDir, "jsrunner.txt")
-	if err = ioutil.WriteFile(f, []byte(resStr), 0644); err != nil {
+	if err = ioutil.WriteFile(f, []byte(res), 0644); err != nil {
 		return err
 	}
 
