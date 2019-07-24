@@ -38,6 +38,7 @@ func allTasks() []Task {
 		&tasks.EventListener{Event: "hashchange"},
 		&tasks.JSRunner{},
 		&tasks.Location{},
+		&tasks.LocalStorage{},
 		&tasks.OuterHTML{},
 		&tasks.Title{},
 	}
