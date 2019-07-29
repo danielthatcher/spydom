@@ -224,6 +224,7 @@ func main() {
 			if retries[u] > conf.Retries {
 				log.Printf("Failed to load %s. Giving up after %d tries.\n", u, conf.Retries)
 				delete(retries, u)
+				urlsWg.Done()
 				continue
 			}
 			log.Printf("Failed to load %s. Will retry (%d/%d).\n", u, retries[u], conf.Retries)
