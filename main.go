@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -25,6 +26,7 @@ type Worker struct {
 	id     int
 	tasks  []Task
 	wg     *sync.WaitGroup
+	urlsWg *sync.WaitGroup
 	config *config.Config
 }
 
@@ -49,8 +51,8 @@ func (w *Worker) Load(u string) error {
 }
 
 // Work reads URLs from the given channel, loads them, and then performs any
-// tasks on the loaded page.
-func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
+// tasks on the loaded page. URLs which failed to load are sent down failureChan
+func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, failureChan chan<- string) {
 	for {
 		u, more := <-urlsChan
 		if !more {
@@ -63,23 +65,8 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 		absDir := path.Join(w.config.OutDir, relDir)
 		os.MkdirAll(absDir, os.ModePerm)
 
-		attempt := 1
 		err := w.Load(u)
-		success := true
-		for err != nil {
-			if attempt >= w.config.Retries {
-				errorChan <- fmt.Errorf("worker %d: failed to load %v: %v; giving up after %d attempts", w.id, u, err, attempt)
-				success = false
-				break
-			}
-
-			attempt++
-			errorChan <- fmt.Errorf("worker %d: failed to load %v: %v; retrying (%d/%d)", w.id, u, err, attempt, w.config.Retries)
-			err = w.Load(u)
-		}
-
-		if !success {
-			continue
+		if err != nil {
 		}
 
 		// Run all workers on page. Start at 0 and go to 4 in as these are valid
@@ -94,6 +81,7 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error) {
 				}
 			}
 		}
+		w.urlsWg.Done()
 	}
 }
 
@@ -150,10 +138,23 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Channels to communicate with workers
+	// urlsChan is used to send URLs to workers to load and scan
+	// errorsChan is used to send URLs from workers
+	// failureChan is used to send URLs which failed to load from workers
 	urlsChan := make(chan string)
 	errorChan := make(chan error)
+	failureChan := make(chan string)
+
+	// urlsWg tracks the URLs which have been loaded
+	urlsWg := &sync.WaitGroup{}
+
+	// workerWg tracks which workers are finished
 	workerWg := &sync.WaitGroup{}
 	workerWg.Add(conf.NumThreads)
+
+	// Create the workers
 	workers := make([]*Worker, conf.NumThreads)
 	var ctx *context.Context
 	for i := range workers {
@@ -176,23 +177,31 @@ func main() {
 			id:     i,
 			tasks:  tasks,
 			wg:     workerWg,
+			urlsWg: urlsWg,
 			config: &conf,
 		}
 		workers[i] = w
-		go w.Work(urlsChan, errorChan)
+		go w.Work(urlsChan, errorChan, failureChan)
 	}
 
-	// Read targets line by line and dispatch to workers
+	// Try to open the targets file
 	tfile, err := os.Open(flag.Arg(0))
 	if err != nil {
 		log.Fatalf("Failed to open targets file: %v\n", err)
 	}
 	defer tfile.Close()
 
+	// Add to the urlsWg for each line in the file
 	tscanner := bufio.NewScanner(tfile)
+	countScanner := bufio.NewScanner(tfile)
+	for countScanner.Scan() {
+		urlsWg.Add(1)
+	}
+
+	// Read targets line by line and dispatch to workers
+	tfile.Seek(0, io.SeekStart)
 	re := regexp.MustCompile("^https?://")
 	go func() {
-		defer close(urlsChan)
 		for tscanner.Scan() {
 			u := tscanner.Text()
 			if !re.MatchString(u) {
@@ -206,6 +215,22 @@ func main() {
 		}
 	}()
 
+	// Retry failure URLs
+	retries := make(map[string]int)
+	go func() {
+		for {
+			u := <-failureChan
+			retries[u]++
+			if retries[u] > conf.Retries {
+				log.Printf("Failed to load %s. Giving up after %d tries.\n", u, conf.Retries)
+				delete(retries, u)
+				continue
+			}
+			log.Printf("Failed to load %s. Will retry (%d/%d).\n", u, retries[u], conf.Retries)
+			urlsChan <- u
+		}
+	}()
+
 	// Report errors to stderr
 	go func() {
 		l := log.New(os.Stderr, "ERROR: ", 0)
@@ -215,5 +240,7 @@ func main() {
 		}
 	}()
 
+	urlsWg.Wait()
+	close(urlsChan)
 	workerWg.Wait()
 }
