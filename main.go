@@ -112,7 +112,7 @@ func main() {
 	flag.StringVarP(&conf.JS, "js", "", "", "JavaScript to run with the jsrunner module")
 	flag.StringVarP(&conf.JSFile, "js-file", "", "", "A file containing JavaScript to run with the jsrunner module")
 	flag.Uint8VarP(&conf.JSPriority, "js-priority", "", 4, "The run priority for the jsrunner module, between 0 and 4. Modules with lower priorities get run sooner.")
-	flag.StringVarP(&conf.ReportFile, "report-file", "", "report.html", "The file to write the HTML report to")
+	flag.StringVarP(&conf.ReportFile, "report-file", "R", "report.html", "The file to write the HTML report to")
 
 	ls := flag.BoolP("list-tasks", "l", false, "List tasks and exit")
 	insecure := flag.BoolP("insecure", "k", false, "Ignore certificate errors")
