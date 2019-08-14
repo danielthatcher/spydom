@@ -61,7 +61,7 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, failureCha
 		}
 
 		// Output dir
-		relDir := strings.Replace(u, "://", "-", 1)
+		relDir := getRelDir(u)
 		absDir := path.Join(w.config.OutDir, relDir)
 		os.MkdirAll(absDir, os.ModePerm)
 
@@ -83,6 +83,11 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, failureCha
 		}
 		w.urlsWg.Done()
 	}
+}
+
+// Returns the correct direcoty path for the given url relative to the output directory
+func getRelDir(u string) string {
+	return strings.Replace(u, "://", "-", 1)
 }
 
 func main() {
@@ -107,10 +112,15 @@ func main() {
 	flag.StringVarP(&conf.JS, "js", "", "", "JavaScript to run with the jsrunner module")
 	flag.StringVarP(&conf.JSFile, "js-file", "", "", "A file containing JavaScript to run with the jsrunner module")
 	flag.Uint8VarP(&conf.JSPriority, "js-priority", "", 4, "The run priority for the jsrunner module, between 0 and 4. Modules with lower priorities get run sooner.")
+	flag.StringVarP(&conf.ReportFile, "report-file", "", "report.html", "The file to write the HTML report to")
 
 	ls := flag.BoolP("list-tasks", "l", false, "List tasks and exit")
 	insecure := flag.BoolP("insecure", "k", false, "Ignore certificate errors")
 	visible := flag.BoolP("visible", "", false, "Show the Chrome window rather than running in headless mode")
+
+	noReport := flag.BoolP("no-report", "", false, "Don't write out the HTML report")
+	reportOnly := flag.BoolP("no-scan", "", false, "Only write the HTML report, don't run the scan again")
+
 	flag.Parse()
 
 	if *ls {
@@ -123,6 +133,7 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+	conf.URLsFile = flag.Arg(0)
 
 	dir, err := filepath.Abs(relDir)
 	if err != nil {
@@ -130,118 +141,124 @@ func main() {
 	}
 	conf.OutDir = dir
 
-	// User options controlling chrome
-	certParams := security.SetIgnoreCertificateErrors(*insecure)
-	opts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", !*visible))
+	if !*reportOnly {
+		// User options controlling chrome
+		certParams := security.SetIgnoreCertificateErrors(*insecure)
+		opts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", !*visible))
 
-	tasks, err := getTasks(&conf)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Channels to communicate with workers
-	// urlsChan is used to send URLs to workers to load and scan
-	// errorsChan is used to send URLs from workers
-	// failureChan is used to send URLs which failed to load from workers
-	urlsChan := make(chan string)
-	errorChan := make(chan error)
-	failureChan := make(chan string)
-
-	// urlsWg tracks the URLs which have been loaded
-	urlsWg := &sync.WaitGroup{}
-
-	// workerWg tracks which workers are finished
-	workerWg := &sync.WaitGroup{}
-	workerWg.Add(conf.NumThreads)
-
-	// Create the workers
-	workers := make([]*Worker, conf.NumThreads)
-	var ctx *context.Context
-	for i := range workers {
-		var cancel context.CancelFunc
-		var newCtx context.Context
-		if ctx == nil {
-			newCtx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
-			newCtx, cancel = chromedp.NewContext(newCtx)
-		} else {
-			newCtx, cancel = chromedp.NewContext(*ctx)
+		tasks, err := getTasks(&conf)
+		if err != nil {
+			log.Fatal(err)
 		}
-		if err := chromedp.Run(newCtx, certParams); err != nil {
-			log.Fatalf("Failed to launch chrome insance: %v\n", err)
-		}
-		defer cancel()
 
-		ctx = &newCtx
-		w := &Worker{
-			ctx:    &newCtx,
-			id:     i,
-			tasks:  tasks,
-			wg:     workerWg,
-			urlsWg: urlsWg,
-			config: &conf,
-		}
-		workers[i] = w
-		go w.Work(urlsChan, errorChan, failureChan)
-	}
+		// Channels to communicate with workers
+		// urlsChan is used to send URLs to workers to load and scan
+		// errorsChan is used to send URLs from workers
+		// failureChan is used to send URLs which failed to load from workers
+		urlsChan := make(chan string)
+		errorChan := make(chan error)
+		failureChan := make(chan string)
 
-	// Try to open the targets file
-	tfile, err := os.Open(flag.Arg(0))
-	if err != nil {
-		log.Fatalf("Failed to open targets file: %v\n", err)
-	}
-	defer tfile.Close()
+		// urlsWg tracks the URLs which have been loaded
+		urlsWg := &sync.WaitGroup{}
 
-	// Add to the urlsWg for each line in the file
-	tscanner := bufio.NewScanner(tfile)
-	countScanner := bufio.NewScanner(tfile)
-	for countScanner.Scan() {
-		urlsWg.Add(1)
-	}
+		// workerWg tracks which workers are finished
+		workerWg := &sync.WaitGroup{}
+		workerWg.Add(conf.NumThreads)
 
-	// Read targets line by line and dispatch to workers
-	tfile.Seek(0, io.SeekStart)
-	re := regexp.MustCompile("^https?://")
-	go func() {
-		for tscanner.Scan() {
-			u := tscanner.Text()
-			if !re.MatchString(u) {
-				u = "https://" + u
+		// Create the workers
+		workers := make([]*Worker, conf.NumThreads)
+		var ctx *context.Context
+		for i := range workers {
+			var cancel context.CancelFunc
+			var newCtx context.Context
+			if ctx == nil {
+				newCtx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
+				newCtx, cancel = chromedp.NewContext(newCtx)
+			} else {
+				newCtx, cancel = chromedp.NewContext(*ctx)
 			}
-			urlsChan <- u
-		}
-
-		if err = tscanner.Err(); err != nil {
-			log.Fatalf("Error while reading targets file: %v\n", err)
-		}
-	}()
-
-	// Retry failure URLs
-	retries := make(map[string]int)
-	go func() {
-		for {
-			u := <-failureChan
-			retries[u]++
-			if retries[u] > conf.Retries {
-				log.Printf("Failed to load %s. Giving up after %d tries.\n", u, conf.Retries)
-				delete(retries, u)
-				urlsWg.Done()
-				continue
+			if err := chromedp.Run(newCtx, certParams); err != nil {
+				log.Fatalf("Failed to launch chrome insance: %v\n", err)
 			}
-			log.Printf("Failed to load %s. Will retry (%d/%d).\n", u, retries[u], conf.Retries)
-			urlsChan <- u
-		}
-	}()
+			defer cancel()
 
-	// Report errors to stderr
-	go func() {
-		l := log.New(os.Stderr, "ERROR: ", 0)
-		for {
-			err := <-errorChan
-			l.Println(err)
+			ctx = &newCtx
+			w := &Worker{
+				ctx:    &newCtx,
+				id:     i,
+				tasks:  tasks,
+				wg:     workerWg,
+				urlsWg: urlsWg,
+				config: &conf,
+			}
+			workers[i] = w
+			go w.Work(urlsChan, errorChan, failureChan)
 		}
-	}()
 
-	urlsWg.Wait()
-	close(urlsChan)
-	workerWg.Wait()
+		// Try to open the targets file
+		tfile, err := os.Open(conf.URLsFile)
+		if err != nil {
+			log.Fatalf("Failed to open targets file: %v\n", err)
+		}
+		defer tfile.Close()
+
+		// Add to the urlsWg for each line in the file
+		tscanner := bufio.NewScanner(tfile)
+		countScanner := bufio.NewScanner(tfile)
+		for countScanner.Scan() {
+			urlsWg.Add(1)
+		}
+
+		// Read targets line by line and dispatch to workers
+		tfile.Seek(0, io.SeekStart)
+		re := regexp.MustCompile("^https?://")
+		go func() {
+			for tscanner.Scan() {
+				u := tscanner.Text()
+				if !re.MatchString(u) {
+					u = "https://" + u
+				}
+				urlsChan <- u
+			}
+
+			if err = tscanner.Err(); err != nil {
+				log.Fatalf("Error while reading targets file: %v\n", err)
+			}
+		}()
+
+		// Retry failure URLs
+		retries := make(map[string]int)
+		go func() {
+			for {
+				u := <-failureChan
+				retries[u]++
+				if retries[u] > conf.Retries {
+					log.Printf("Failed to load %s. Giving up after %d tries.\n", u, conf.Retries)
+					delete(retries, u)
+					urlsWg.Done()
+					continue
+				}
+				log.Printf("Failed to load %s. Will retry (%d/%d).\n", u, retries[u], conf.Retries)
+				urlsChan <- u
+			}
+		}()
+
+		// Report errors to stderr
+		go func() {
+			l := log.New(os.Stderr, "ERROR: ", 0)
+			for {
+				err := <-errorChan
+				l.Println(err)
+			}
+		}()
+
+		urlsWg.Wait()
+		close(urlsChan)
+		workerWg.Wait()
+	}
+
+	if !*noReport {
+		report(&conf)
+	}
 }

@@ -15,4 +15,6 @@ type Config struct {
 	JS         string
 	JSFile     string
 	JSPriority uint8
+	ReportFile string
+	URLsFile   string
 }
