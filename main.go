@@ -67,6 +67,9 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, failureCha
 
 		err := w.Load(u)
 		if err != nil {
+			errorChan <- fmt.Errorf("failed to load %s: %v", u, err)
+			failureChan <- u
+			continue
 		}
 
 		// Run all workers on page. Start at 0 and go to 4 in as these are valid
