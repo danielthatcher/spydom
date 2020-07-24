@@ -176,24 +176,17 @@ func main() {
 
 		// Create the workers
 		workers := make([]*Worker, conf.NumThreads)
-		var ctx *context.Context
+		partentCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+		defer cancel()
 		for i := range workers {
-			var cancel context.CancelFunc
-			var newCtx context.Context
-			if ctx == nil {
-				newCtx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
-				newCtx, cancel = chromedp.NewContext(newCtx)
-			} else {
-				newCtx, cancel = chromedp.NewContext(*ctx)
-			}
-			if err := chromedp.Run(newCtx, certParams); err != nil {
+			childCtx, _ := chromedp.NewContext(partentCtx)
+			if err := chromedp.Run(childCtx, certParams); err != nil {
 				log.Fatalf("Failed to launch chrome insance: %v\n", err)
 			}
 			defer cancel()
 
-			ctx = &newCtx
 			w := &Worker{
-				ctx:    &newCtx,
+				ctx:    &childCtx,
 				id:     i,
 				tasks:  tasks,
 				wg:     workerWg,
