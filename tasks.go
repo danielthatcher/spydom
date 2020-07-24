@@ -41,6 +41,7 @@ func allTasks() []Task {
 		&tasks.LocalStorage{},
 		&tasks.OuterHTML{},
 		&tasks.Title{},
+		&tasks.HeapSnapshot{},
 	}
 
 }
