@@ -74,10 +74,11 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, failureCha
 
 		// Run all workers on page. Start at 0 and go to 4 in as these are valid
 		// priorities for the jsrunner module
+		ctx, cancel := context.WithCancel(*w.ctx)
 		for i := uint8(0); i <= 4; i++ {
 			for _, t := range w.tasks {
 				if t.Priority() == i {
-					err := t.Run(*w.ctx, u, absDir, relDir)
+					err := t.Run(ctx, u, absDir, relDir)
 					if err != nil {
 						errorChan <- fmt.Errorf("failed to run task %v: %v", t.Slug(), err)
 					}
@@ -85,6 +86,7 @@ func (w *Worker) Work(urlsChan <-chan string, errorChan chan<- error, failureCha
 			}
 		}
 		w.urlsWg.Done()
+		cancel()
 	}
 }
 
