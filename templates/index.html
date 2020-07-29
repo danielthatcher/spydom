@@ -18,11 +18,16 @@
                 position: fixed;
                 top: 0;
                 width: 100%;
+                display: flex;
+                flex-wrap: nowrap;
+            }
+
+            .navbar p {
+                color: white;
+                flex: 1;
             }
 
             .navbar a {
-                float: left;
-                display: block;
                 color: #eeeeee;
                 text-align: center;
                 padding: 14px 16px;
@@ -30,7 +35,7 @@
             }
 
             .navbar a:hover {
-                background: #cccccc;
+                color: #cccccc;
             }
 
             .main {
@@ -95,11 +100,13 @@
             }
         </style>
         <div id="header" class="navbar">
-            <p style="color:white;">Spydom Report</p>
+            <a href="" id="button-prev">&lt; Previous</a>
+            <p>Spydom Report</p>
+            <a href="" id="button-next">Next &gt;</a>
         </div>
         <div class="main" id="content">
             {{ range . }}
-            <div class="site-result" id="{{ . }}">
+            <div class="site-result" id="{{ . }}" hidden="true">
                 <div class="site-header">
                     <a href="{{ join . "requested-url.txt" | embedFile }}">{{ join . "requested-url.txt" | embedFile }}</a>
                 </div>
@@ -135,11 +142,36 @@
                             <pre>
 {{ join . "listeners" "hashchange" | embedBeautified }}
                             </pre>
+                        </div>
                     </div>
+                    <div class="padding"></div>
                 </div>
-                <div class="padding"></div>
             </div>
             {{ end }}
-        </div>
+            </div>
+        <script>
+            var siteResults = document.querySelectorAll(".site-result")
+            var prevButton = document.getElementById("button-prev")
+            var nextButton = document.getElementById("button-next")
+
+            function update() {
+                for (let x of siteResults) {
+                    x.hidden = true
+                }
+                let i = parseInt(location.hash.substr(1))
+                if (i < siteResults.length) {
+                    siteResults[i].hidden=false
+                    prevButton.href = "#" + (i - 1 + siteResults.length) % siteResults.length
+                    nextButton.href = "#" + (i + 1) % siteResults.length
+                }
+            }
+            window.addEventListener("hashchange", update)
+
+            if (location.hash.length === 0) {
+                location.hash = "#0"
+            } else {
+                update()
+            }
+        </script>
     </body>
 </html>
