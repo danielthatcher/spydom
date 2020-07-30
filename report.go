@@ -78,12 +78,39 @@ func report(conf *config.Config) error {
 		log.Fatalf("Failed to open URLs file when generating report: %v\n", err)
 	}
 
+	// ReportFrame is passed to the template to consolidate requested URLs which lead to the
+	// same final URL.
+	type ReportFrame struct {
+		// Dir represents a sample which directory which will be used to render the final URL
+		Dir string
+
+		// Urls is a slice of URLs which all lead to navigation to same final URL
+		Urls []string
+	}
+
 	// Dirs holds all the directories for the output
-	var dirs []string
+	frames := make(map[string]ReportFrame, 0)
 	scanner := bufio.NewScanner(urlsFile)
 	for scanner.Scan() {
-		rel := getRelDir(scanner.Text())
-		dirs = append(dirs, path.Join(conf.OutDir, rel))
+		reqUrl := scanner.Text()
+		rel := getRelDir(reqUrl)
+		abs := path.Join(conf.OutDir, rel)
+		urlfile := path.Join(abs, "final-url.txt")
+
+		b, err := ioutil.ReadFile(urlfile)
+		if err != nil {
+			b = []byte("unknown")
+			log.Printf("failed to read %s: %v\n", urlfile, err)
+		}
+
+		u := strings.TrimSpace(string(b))
+		if _, exists := frames[u]; !exists {
+			frames[u] = ReportFrame{abs, []string{u}}
+		} else {
+			f := frames[u]
+			f.Urls = append(f.Urls, reqUrl)
+			frames[u] = f
+		}
 	}
 
 	// Get the output file
@@ -92,7 +119,7 @@ func report(conf *config.Config) error {
 	w := bufio.NewWriter(outFile)
 
 	// Execute the template
-	err = t.Execute(w, dirs)
+	err = t.Execute(w, frames)
 	if err != nil {
 		log.Fatalf("Failed to execute report template: %v\n", err)
 	}

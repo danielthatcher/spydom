@@ -50,12 +50,7 @@
 
             .site-header {
                 font-size: 24px;
-            }
-
-            .final-url {
-                font-size: 14px;
-                color: #333333;
-                padding-bottom: 10px;
+                padding-bottom: 20px;
             }
 
             .site-content {
@@ -105,42 +100,44 @@
             <a href="" id="button-next">Next &gt;</a>
         </div>
         <div class="main" id="content">
-            {{ range . }}
-            <div class="site-result" id="{{ . }}" hidden="true">
+            {{ range $url, $frame := . }}
+            <div class="site-result" id="{{ $url }}" hidden="true">
                 <div class="site-header">
-                    <a href="{{ join . "requested-url.txt" | embedFile }}">{{ join . "requested-url.txt" | embedFile }}</a>
-                </div>
-                <div class="final-url">
-                    Final URL<br>
-                    <a href="{{ join . "final-url.txt" | embedFile }}">{{ join . "final-url.txt" | embedFile }}</a>
+                    <a href="{{ $url }}">{{ $url }}</a>
                 </div>
                 <div class="site-content">
                     <div class="site-screenshot">
-                        <img src="{{ join . "screenshot.png" | embedPNG }}" />
+                        <img src="{{ join $frame.Dir "screenshot.png" | embedPNG }}" />
                     </div>
                     <div class="site-detail">
                         <div class="site-title">
                             <h1>Title</h1>
-                            {{ join . "title.txt" | embedFile }}
+                            {{ join $frame.Dir "title.txt" | embedFile }}
+                        </div>
+                        <div class="requested-urls">
+                            <h1>Requested URLs</h1>
+                            {{ range $frame.Urls }}
+                            <a href="{{ . }}">{{ . }}</a><br>
+                            {{ end }}
                         </div>
                         <div class="storage">
                             <h1>Local Storage</h1>
-                            <pre>{{ join . "localstorage.txt" | embedFile }}</pre>
+                            <pre>{{ join $frame.Dir "localstorage.txt" | embedFile }}</pre>
                         </div>
                         <div class="storage">
                             <h1>Session Storage</h1>
-                            <pre>{{ join . "sessionstorage.txt" | embedFile }}</pre>
+                            <pre>{{ join $frame.Dir "sessionstorage.txt" | embedFile }}</pre>
                         </div>
                         <div class="listener message-listener">
                             <h1>Message listeners</h1>
                             <pre>
-{{ join . "listeners" "message" | embedBeautified }}
+{{ join $frame.Dir "listeners" "message" | embedBeautified }}
                             </pre>
                         </div>
                         <div class="listener hashchange-listener">
                             <h1>Hashchange listeners</h1>
                             <pre>
-{{ join . "listeners" "hashchange" | embedBeautified }}
+{{ join $frame.Dir "listeners" "hashchange" | embedBeautified }}
                             </pre>
                         </div>
                     </div>
