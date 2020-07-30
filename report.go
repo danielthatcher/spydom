@@ -105,7 +105,7 @@ func report(conf *config.Config) error {
 
 		u := strings.TrimSpace(string(b))
 		if _, exists := frames[u]; !exists {
-			frames[u] = ReportFrame{abs, []string{u}}
+			frames[u] = ReportFrame{abs, []string{reqUrl}}
 		} else {
 			f := frames[u]
 			f.Urls = append(f.Urls, reqUrl)
