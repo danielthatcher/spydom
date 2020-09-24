@@ -26,7 +26,7 @@ func (t *EventListener) Slug() string {
 }
 
 func (t *EventListener) Description() string {
-	return fmt.Sprintf("Extract all %s events from the page", t.Event)
+	return fmt.Sprintf("Extract all %s event listeners from the page", t.Event)
 }
 
 func (t *EventListener) Init(c *config.Config) error {

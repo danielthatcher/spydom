@@ -24,7 +24,7 @@ func (t *HeapSnapshot) Slug() string {
 }
 
 func (t *HeapSnapshot) Description() string {
-	return "Save a snapshot of the heap"
+	return "Save a snapshot of the JavaScript heap"
 }
 
 func (t *HeapSnapshot) Init(c *config.Config) error {
