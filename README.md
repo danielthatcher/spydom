@@ -1,5 +1,5 @@
 # Spydom
-Spydom is a scanner that automates Chrome headless to load a list of web pages. Information such as `postmessage` and `hashchange` listeners and generated HTML, is then extracted from these pages, and tasks such as taking screenshots are performed against each page.
+Spydom is a scanner that automates Chrome headless to load a list of web pages. Information, such as `postmessage` and `hashchange` listeners and generated HTML, is then extracted from these pages, and tasks such as taking screenshots are performed against each page.
 
 ## Usage
 For its most basic usage, spydom can be be run using
