@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/danielthatcher/spydom/config"
 	"github.com/gobuffalo/packr"
-	"gitlab.com/dcthatch/spydom/config"
 )
 
 func report(conf *config.Config) error {

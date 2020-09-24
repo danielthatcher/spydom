@@ -8,8 +8,8 @@ import (
 	"path"
 
 	"github.com/chromedp/chromedp"
+	"github.com/danielthatcher/spydom/config"
 	"github.com/ditashi/jsbeautifier-go/jsbeautifier"
-	"gitlab.com/dcthatch/spydom/config"
 )
 
 // EventListener extracts the functions listening for message events from the DOM

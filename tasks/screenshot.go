@@ -7,7 +7,7 @@ import (
 
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
-	"gitlab.com/dcthatch/spydom/config"
+	"github.com/danielthatcher/spydom/config"
 )
 
 type Screenshot struct {

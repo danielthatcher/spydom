@@ -16,8 +16,8 @@ import (
 
 	"github.com/chromedp/cdproto/security"
 	"github.com/chromedp/chromedp"
+	"github.com/danielthatcher/spydom/config"
 	flag "github.com/spf13/pflag"
-	"gitlab.com/dcthatch/spydom/config"
 )
 
 // Worker represents the tasks for a thread

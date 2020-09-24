@@ -8,7 +8,7 @@ import (
 
 	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/chromedp"
-	"gitlab.com/dcthatch/spydom/config"
+	"github.com/danielthatcher/spydom/config"
 )
 
 // The OuterHTML task saves the outer HTML of the rendered page

@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/chromedp/chromedp"
-	"gitlab.com/dcthatch/spydom/config"
+	"github.com/danielthatcher/spydom/config"
 )
 
 // The Title task saves the requested url and final location to files

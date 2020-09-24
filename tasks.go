@@ -6,8 +6,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"gitlab.com/dcthatch/spydom/config"
-	"gitlab.com/dcthatch/spydom/tasks"
+	"github.com/danielthatcher/spydom/config"
+	"github.com/danielthatcher/spydom/tasks"
 )
 
 // Task represents a task that should be performed on all pages

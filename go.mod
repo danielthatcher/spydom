@@ -1,4 +1,4 @@
-module gitlab.com/dcthatch/spydom
+module github.com/danielthatcher/spydom
 
 go 1.12
 

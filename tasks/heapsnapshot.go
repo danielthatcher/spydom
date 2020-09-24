@@ -7,7 +7,7 @@ import (
 
 	"github.com/chromedp/cdproto/heapprofiler"
 	"github.com/chromedp/chromedp"
-	"gitlab.com/dcthatch/spydom/config"
+	"github.com/danielthatcher/spydom/config"
 )
 
 // The HeapSnapshot task task saves a snapshot of the heap
